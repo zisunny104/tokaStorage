@@ -52,6 +52,6 @@ Java 21、Maven，執行 `./build.ps1`；Maven 不在 PATH 時提供 `-Maven`，
 
 測試覆蓋三種 backend 重開讀寫、九種格式互轉、精確數字與中文/null/巢狀資料、來源保留、backup 驗證、目的地不覆蓋、target 寫入失敗、lock、schema 不符、錯誤 backend、危險 YAML、損壞 JSON，以及不初始化其他 SQLite 資料庫。測試資料保存在 `.build-tools/tests`，不接正式 MySQL、VPS 或玩家資料。
 
-13 個 library 測試均通過、沒有跳過。主線另以打包此 library 的 tokaWorlds 1.0.1，在 Windows 的 PM1E 4511 及測試插件環境驗證三後端載入與世界工作持久化；不能據此宣稱所有插件 classloader 組合都相容。
+14 個 library 測試均通過、沒有跳過。主線另以打包此 library 的 tokaWorlds 1.0.1，在 Windows 的 PM1E 4511 及測試插件環境驗證三後端載入與世界工作持久化；不能據此宣稱所有插件 classloader 組合都相容。
 
 尚未測 Linux 檔案系統、斷電／process kill、磁碟滿載或正式 VPS。此 prototype 不能直接當完成全部插件資料格式搬遷。
