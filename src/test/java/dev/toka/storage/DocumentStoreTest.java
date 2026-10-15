@@ -22,6 +22,17 @@ public class DocumentStoreTest {
             try(DocumentStore reopened=DocumentStore.open(config)){assertEquals(document(),reopened.load("state").orElseThrow());}
         }
     }
+    @Test public void emptyLeftoverSqliteFileIsTreatedAsNewStore()throws Exception {
+        Path dir=root.resolve("empty-sqlite");Files.createDirectories(dir);Files.createFile(dir.resolve("documents.sqlite"));
+        StoreConfig config=new StoreConfig(Backend.SQLITE,dir,1);
+        try(DocumentStore store=DocumentStore.open(config)){store.save("state",document());}
+        try(DocumentStore reopened=DocumentStore.open(config)){assertEquals(document(),reopened.load("state").orElseThrow());}
+    }
+    @Test public void foreignSqliteFileWithoutMetadataIsRejected()throws Exception {
+        Path dir=root.resolve("foreign-sqlite");Files.createDirectories(dir);
+        try(java.sql.Connection c=SqliteDriver.connect(dir.resolve("documents.sqlite"));java.sql.Statement s=c.createStatement()){s.execute("CREATE TABLE other(id INTEGER)");}
+        assertThrows(IOException.class,()->DocumentStore.open(new StoreConfig(Backend.SQLITE,dir,1)));
+    }
     @Test public void migrationAllNinePairsPreservesSourceAndBackup()throws Exception {
         for(Backend from:Backend.values())for(Backend to:Backend.values()){
             Path dir=root.resolve(from+"-"+to);StoreConfig source=new StoreConfig(from,dir.resolve("source"),1);

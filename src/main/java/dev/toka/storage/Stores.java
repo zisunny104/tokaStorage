@@ -126,13 +126,18 @@ final class Stores {
             try {
                 if(Files.isSymbolicLink(data))throw new IOException("Symbolic data file");
                 if(config.backend()==Backend.SQLITE) {
-                    try{Class.forName("org.sqlite.JDBC",true,Stores.class.getClassLoader());}
-                    catch(ClassNotFoundException missing){throw new IOException("SQLite JDBC driver missing from library classloader",missing);}
-                    boolean existing=Files.exists(data);
+
+
+                    // An empty file is what an interrupted first open leaves behind; treat it as a new store.
+                    boolean existing=Files.exists(data)&&Files.size(data)>0;
                     // DriverManager filters registered drivers by caller classloader; plugin loaders can differ.
-                    connection=new org.sqlite.JDBC().connect("jdbc:sqlite:"+data,new Properties());
+                    connection=SqliteDriver.connect(data);
                     if(existing){
-                        try(Statement sql=connection.createStatement();ResultSet rs=sql.executeQuery("SELECT schema_version FROM metadata WHERE id=1")){if(!rs.next()||new BigDecimal(rs.getString(1)).intValueExact()!=config.schemaVersion())throw new IOException("Unsupported schemaVersion");}
+                        boolean initialized;
+                        try(Statement sql=connection.createStatement();ResultSet rs=sql.executeQuery("SELECT COUNT(*) FROM sqlite_master WHERE type='table'")){initialized=rs.next()&&rs.getInt(1)>0;}
+                        if(initialized){
+                            try(Statement sql=connection.createStatement();ResultSet rs=sql.executeQuery("SELECT schema_version FROM metadata WHERE id=1")){if(!rs.next()||new BigDecimal(rs.getString(1)).intValueExact()!=config.schemaVersion())throw new IOException("Unsupported schemaVersion");}
+                        }
                     }
                     try(Statement sql=connection.createStatement()) {
                         sql.execute("PRAGMA journal_mode=DELETE");sql.execute("PRAGMA synchronous=FULL");sql.execute("PRAGMA busy_timeout=5000");
@@ -216,3 +221,4 @@ final class Stores {
         }
     }
 }
+
