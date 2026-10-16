@@ -1,5 +1,7 @@
 # tokaStorage 0.1.1
 
+整體拆分現況只維護於 [拆分主文件](https://github.com/zisunny104/tokaProfiles/blob/main/docs/ARCHITECTURE.md)；本 README 維護本專案的設定、API 與使用限制。
+
 Java 21 共用儲存 library prototype，**不是 Nukkit 插件，不要放入伺服器 plugins**。提供 SQLite、JSON、YAML 三種 backend，預設 SQLite。第一個用途是新 toka 插件的維護狀態、待辦、返回位置及操作紀錄；尚未接管 zero 原有 MySQL 或其領地資料。
 
 ## API
@@ -62,4 +64,5 @@ Java 21、Maven，執行 `./build.ps1`；Maven 不在 PATH 時提供 `-Maven`，
 
 ### 0.1.2
 新增選用的隔離 SQLite driver 載入：宿主若提供 META-INF/toka/sqlite-jdbc.jar，使用僅繼承 Java platform 的獨立 classloader，保留 JNI 套件名稱。未提供時沿用宿主 classloader。tokaWorlds 1.0.3 已採用此模式；其他宿主須自行配置打包才能取得隔離效果。資料 schema 不變。
+
 
