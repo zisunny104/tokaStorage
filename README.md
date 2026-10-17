@@ -58,6 +58,10 @@ Java 21、Maven，執行 `./build.ps1`；Maven 不在 PATH 時提供 `-Maven`，
 
 尚未測 Linux 檔案系統、斷電／process kill、磁碟滿載或正式 VPS。此 prototype 不能直接當完成全部插件資料格式搬遷。
 
+### 0.1.4
+
+- 修正：搬遷工具拒絕空檔案或沒有任何文件的來源，不再視為成功；金鑰檢查改用預編譯規則。API 與資料格式不變。
+
 ### 0.1.3
 
 - 修正：SQLite 檔案已存在但是空的（例如第一次開啟被中斷）時，開啟會因為 `no such table: metadata` 失敗；現在視為新儲存庫重新建立。非空且沒有 `metadata` 表的檔案仍會拒絕開啟。

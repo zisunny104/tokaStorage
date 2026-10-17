@@ -17,6 +17,9 @@ import java.util.*;
 import java.math.*;
 
 final class Stores {
+    private static final java.util.regex.Pattern KEY=java.util.regex.Pattern.compile("[A-Za-z0-9][A-Za-z0-9._-]{0,127}");
+    private static final java.util.regex.Pattern INTEGER=java.util.regex.Pattern.compile("-?[0-9]+");
+    static String fileName(Backend backend){return switch(backend){case SQLITE->"documents.sqlite";case JSON->"documents.json";case YAML->"documents.yml";};}
     static final Gson GSON = new GsonBuilder().disableHtmlEscaping().serializeNulls().setObjectToNumberStrategy(ToNumberPolicy.LONG_OR_DOUBLE).create();
     static final long LIMIT = 16L * 1024 * 1024;
     static DocumentStore open(StoreConfig config) throws IOException { return new Store(config); }
@@ -87,14 +90,14 @@ final class Stores {
         } return result;
     }
     static void checkKey(String key) throws IOException {
-        if (key==null || !key.matches("[A-Za-z0-9][A-Za-z0-9._-]{0,127}")) throw new IOException("Invalid document key");
+        if (key==null || !KEY.matcher(key).matches()) throw new IOException("Invalid document key");
     }
     static Object yamlValue(JsonElement element) {
         if(element.isJsonNull())return null;
         if(element.isJsonObject()){Map<String,Object> map=new LinkedHashMap<>();element.getAsJsonObject().entrySet().forEach(e->map.put(e.getKey(),yamlValue(e.getValue())));return map;}
         if(element.isJsonArray()){List<Object> list=new ArrayList<>();element.getAsJsonArray().forEach(e->list.add(yamlValue(e)));return list;}
         JsonPrimitive value=element.getAsJsonPrimitive();if(value.isBoolean())return value.getAsBoolean();if(value.isString())return value.getAsString();
-        String number=value.getAsString();return number.matches("-?[0-9]+")?new BigInteger(number):new BigDecimal(number);
+        String number=value.getAsString();return INTEGER.matcher(number).matches()?new BigInteger(number):new BigDecimal(number);
     }
     static final class DecimalConstructor extends SafeConstructor {
         DecimalConstructor(LoaderOptions options){super(options);yamlConstructors.put(Tag.FLOAT,new AbstractConstruct(){public Object construct(Node node){return new BigDecimal(((ScalarNode)node).getValue().replace("_",""));}});}
@@ -113,7 +116,7 @@ final class Stores {
             this.config=config;
             if (Files.isSymbolicLink(config.directory())) throw new IOException("Store directory must not be a symbolic link");
             Files.createDirectories(config.directory());
-            String expected=switch(config.backend()){case SQLITE->"documents.sqlite";case JSON->"documents.json";case YAML->"documents.yml";};
+            String expected=fileName(config.backend());
             for(String name:List.of("documents.sqlite","documents.json","documents.yml"))if(!name.equals(expected)&&Files.exists(config.directory().resolve(name),LinkOption.NOFOLLOW_LINKS))throw new IOException("Different backend already exists; explicit migration required");
             Path lockPath=config.directory().resolve(".store.lock");
             if(Files.isSymbolicLink(lockPath))throw new IOException("Symbolic lock file");
@@ -122,12 +125,10 @@ final class Stores {
             try { acquired=lockChannel.tryLock(); } catch(OverlappingFileLockException ignored) { }
             if(acquired==null){lockChannel.close();throw new IOException("Store already open");}
             lock=acquired;
-            data=config.directory().resolve(switch(config.backend()){case SQLITE->"documents.sqlite";case JSON->"documents.json";case YAML->"documents.yml";});
+            data=config.directory().resolve(expected);
             try {
                 if(Files.isSymbolicLink(data))throw new IOException("Symbolic data file");
                 if(config.backend()==Backend.SQLITE) {
-
-
                     // An empty file is what an interrupted first open leaves behind; treat it as a new store.
                     boolean existing=Files.exists(data)&&Files.size(data)>0;
                     // DriverManager filters registered drivers by caller classloader; plugin loaders can differ.
