@@ -1,7 +1,5 @@
 # tokaStorage
 
-整體拆分現況只維護於 [拆分主文件](https://github.com/zisunny104/zero/blob/master/docs/ARCHITECTURE.md)；本 README 維護本專案的設定、API 與使用限制。
-
 Java 21 共用儲存 library prototype，**不是 Nukkit 插件，不要放入伺服器 plugins**。提供 SQLite、JSON、YAML 三種 backend，預設 SQLite。第一個用途是新 toka 插件的維護狀態、待辦、返回位置及操作紀錄；尚未接管 zero 原有 MySQL 或其領地資料。
 
 ## API
@@ -21,17 +19,17 @@ try (DocumentStore store = DocumentStore.open(new StoreConfig(Path.of("data/stor
 }
 ```
 
-`StoreConfig(Backend, Path, int schemaVersion)` 明確指定格式；`StoreConfig(Path,int)` 預設 SQLite。`load` 回傳 `Optional<JsonObject>`，另有 `save`、`saveAll`、`delete`、`keys`、`snapshot` 與 `close`，I/O 失敗以 `IOException` 回報。文件 key 限 `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`，沒有任意路徑讀寫。回傳及儲存資料皆與呼叫方的 JsonObject 分離。
+`StoreConfig(Backend, Path, int schemaVersion)` 明確指定格式；`StoreConfig(Path,int)` 預設 SQLite。`load` 回傳 `Optional<JsonObject>`，另有 `save`、`saveAll`、`delete`、`keys`、`snapshot` 與 `close`，I/O 失敗以 `IOException` 回報。資料 key 限 `[A-Za-z0-9][A-Za-z0-9._-]{0,127}`，沒有任意路徑讀寫。回傳及儲存資料皆與呼叫方的 JsonObject 分離。
 
 每個儲存目錄只能由一個本 library instance 開啟，使用 OS file lock。backend 不同但已有其他格式的儲存檔時會拒絕開啟，不能單純改設定得到空資料庫。呼叫方負責完整關閉，再明確搬遷。schemaVersion 必須相符，不猜測 schema 升級，也不自動匯入插件舊檔。
 
 ## 持久化與效能範圍
 
-- SQLite 單次 `save` 是單行自動提交 auto-commit；`saveAll` 在同一資料庫交易中批次寫入，失敗時嘗試回復。使用 `synchronous FULL` 及 `DELETE journal`；`load` 與 `keys` 查對應欄位，不為單文件讀取掃描所有 payload。
-- JSON／YAML 包含共同 envelope：`schemaVersion`、`documents`。每次修改會讀寫整份文件，UTF-8、flush／force 後 atomic rename。檔案系統不支援 atomic move 時回報失敗，不默默改為非原子覆寫。
+- SQLite 單次 `save` 是單行自動提交 auto-commit；`saveAll` 在同一資料庫交易中批次寫入，失敗時嘗試回復。使用 `synchronous FULL` 及 `DELETE journal`；`load` 與 `keys` 查對應欄位，不為單筆讀取掃描所有 payload。
+- JSON／YAML 包含共同 envelope：`schemaVersion`、`documents`。每次修改會讀寫整份檔案，UTF-8、flush／force 後 atomic rename。檔案系統不支援 atomic move 時回報失敗，不默默改為非原子覆寫。
 - Windows 暫時 sharing denial 的 `AccessDeniedException` 最多重試四次，等待 25／50／100／200 ms；始終保持 atomic rename。永久拒絕、其他 I/O 錯誤或中斷仍停止，保留原檔；中斷旗標不會被吞掉。
 - 大整數與高精度小數使用 BigInteger／BigDecimal 轉換，YAML 安全載入不建立任意 Java 類別、拒絕 duplicate keys 與 aliases。
-- JSON／YAML 整份檔案上限 16 MiB。SQLite 不使用這個檔案上限，但 snapshot 與搬遷仍會將所有文件載入記憶體；大型 region entity repository 不能拿單一巨大文件全量重寫，也不能宣稱已具備空間索引或查詢分頁。`saveAll` 是同一儲存庫的批次寫入，不是跨插件交易。
+- JSON／YAML 整份檔案上限 16 MiB。SQLite 不使用這個檔案上限，但 snapshot 與搬遷仍會將所有資料項目載入記憶體；大型 region entity repository 不能拿單一巨大資料項目全量重寫，也不能宣稱已具備空間索引或查詢分頁。`saveAll` 是同一儲存庫的批次寫入，不是跨插件交易。
 - API 是同步的。可以用於必須先提交再進行下一步的維護 journal，不能在每次移動、聊天、方塊事件等熱路徑做 I/O。呼叫方安排背景讀取與主執行緒遊戲狀態更新。
 
 **不提供跨儲存庫、跨插件或資料庫加世界資料夾的原子交易 transaction。** 檔案 force 不代表已完成磁碟控制器、目錄 metadata 與停電耐久性的所有驗證；程式崩潰或斷電仍需 journal 與還原流程。file lock 只約束合作使用本 library 的程序，不能阻止外部程式直接改檔。
@@ -42,9 +40,9 @@ try (DocumentStore store = DocumentStore.open(new StoreConfig(Path.of("data/stor
 java -jar output/tokaStorage-<版本>-all.jar migrate JSON /path/source SQLITE /path/new-target 1 /path/backups
 ```
 
-來源必須已存在對應 backend 資料檔，目標整個目錄不得存在，也不能置於來源內。搬遷取得來源 lock，先保存獨立 JSON snapshot backup 並比對，再寫入新的 staging 目錄、逐文件比對、關閉並重新開啟驗證，最後移到新目標。數字比對使用精確 BigDecimal 語意，不用 double 近似判斷。
+來源必須已存在對應 backend 資料檔，目標整個目錄不得存在，也不能置於來源內。搬遷取得來源 lock，先保存獨立 JSON snapshot backup 並比對，再寫入新的 staging 目錄、逐筆比對、關閉並重新開啟驗證，最後移到新目標。數字比對使用精確 BigDecimal 語意，不用 double 近似判斷。
 
-失敗不刪除或轉換來源、不覆蓋既有目標。已建立的 backup 與失敗 staging 會保留，staging 有 `MIGRATION_FAILED.txt` 時不得啟用。最後目錄 move 使用拒絕覆蓋的預設語意，**不宣稱檔案系統間切換原子**。備份是本 library 文件的資料 snapshot，並不是整張世界、原 SQLite binary 或其他插件／設定的完整備份。
+失敗不刪除或轉換來源、不覆蓋既有目標。已建立的 backup 與失敗 staging 會保留，staging 有 `MIGRATION_FAILED.txt` 時不得啟用。最後目錄 move 使用拒絕覆蓋的預設語意，**不宣稱檔案系統間切換原子**。備份是本 library 儲存資料的 snapshot，並不是整張世界、原 SQLite binary 或其他插件／設定的完整備份。
 
 正常使用者資料目錄是信任邊界；拒絕直接 symbolic store/data/lock file，不代表抵禦管理員在執行中替換父目錄或特殊檔案的完整沙箱。
 
@@ -60,7 +58,7 @@ Java 21、Maven，執行 `./build.ps1`；Maven 不在 PATH 時提供 `-Maven`，
 
 ### 0.1.4
 
-- 修正：搬遷工具拒絕空檔案或沒有任何文件的來源，不再視為成功；金鑰檢查改用預編譯規則。API 與資料格式不變。
+- 修正：搬遷工具拒絕空檔案或沒有任何資料記錄的來源，不再視為成功；金鑰檢查改用預編譯規則。API 與資料格式不變。
 
 ### 0.1.3
 
