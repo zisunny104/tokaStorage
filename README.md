@@ -52,17 +52,10 @@ Java 21、Maven，執行 `./build.ps1`；Maven 不在 PATH 時提供 `-Maven`，
 
 測試覆蓋三種 backend 重開讀寫、九種格式互轉、精確數字與中文/null/巢狀資料、來源保留、backup 驗證、目的地不覆蓋、target 寫入失敗、lock、schema 不符、錯誤 backend、危險 YAML、損壞 JSON，以及不初始化其他 SQLite 資料庫。測試資料保存在 `.build-tools/tests`，不接正式 MySQL、VPS 或玩家資料。
 
-既有驗證紀錄包含 library 測試與宿主整合測試；測試數量及最新結果以實際建置輸出為準。主線另以打包此 library 的 tokaWorlds 1.0.1，在 Windows 的 PM1E 4511 及測試插件環境驗證三後端載入與世界工作持久化；不能據此宣稱所有插件 classloader 組合都相容。
+既有驗證紀錄包含 library 測試與宿主整合測試；測試數量及最新結果以實際建置輸出為準。打包此 library 的 tokaWorlds 曾在測試插件環境驗證三後端載入與世界工作持久化；不能據此宣稱所有插件 classloader 組合都相容。
 
-尚未測 Linux 檔案系統、斷電／process kill、磁碟滿載或正式 VPS。此 prototype 不能直接當完成全部插件資料格式搬遷。
+尚未測 Linux 檔案系統、斷電／process kill、磁碟滿載或正式 VPS。此 library 不能直接當完成全部插件資料格式搬遷。
 
-### 0.1.4
+## 隔離的 SQLite driver
 
-- 修正：搬遷工具拒絕空檔案或沒有任何資料記錄的來源，不再視為成功；金鑰檢查改用預編譯規則。API 與資料格式不變。
-
-### 0.1.3
-
-- 修正：SQLite 檔案已存在但是空的（例如第一次開啟被中斷）時，開啟會因為 `no such table: metadata` 失敗；現在視為新儲存庫重新建立。非空且沒有 `metadata` 表的檔案仍會拒絕開啟。
-
-### 0.1.2
-新增選用的隔離 SQLite driver 載入：宿主若提供 META-INF/toka/sqlite-jdbc.jar，使用僅繼承 Java platform 的獨立 classloader，保留 JNI 套件名稱。未提供時沿用宿主 classloader。tokaWorlds 1.0.3 已採用此模式；其他宿主須自行配置打包才能取得隔離效果。資料 schema 不變。
+宿主若提供 META-INF/toka/sqlite-jdbc.jar，使用僅繼承 Java platform 的獨立 classloader，保留 JNI 套件名稱。未提供時沿用宿主 classloader。tokaWorlds 採用此模式；其他宿主須自行配置打包才能取得隔離效果。資料 schema 不變。
